@@ -1,0 +1,16 @@
+{
+    "context_instructions": "",
+    "directives": {
+        "prompt": null,
+        "output": null,
+        "markscheme": "You are an assistant professor of mathematics at a top university. You will be given a first-year mathematics student assignment question. Your task is to create a question-specific mark scheme for this question as follows: \\begin{itemize}\n\\item Provide one bullet point for each grade from 0 to 5. \n\\item A 0/5 solution should contain no correct logical steps toward solving the question.\n\\item A 5/5 solution should be mathematically rigorous and based solely on the assumptions given in the question.\n\\item Use your expertise to define the marking criteria for the marks in between.\n\\end{itemize} \n\nThe question is:\n\"\"\"\n{prompt}\n\"\"\"",
+        "llm_feedback": "You are an assistant professor of mathematics at a top university. You will be given an assignment question, a student's solution to it, and a question-specific mark scheme. Your task is to evaluate the solution, following the guidelines of the provided mark scheme, and to provide concise but helpful feedback on how the student can improve. You should only output focused and actionable feedback, and withhold the grade to avoid misinterpretation. Be precise, clear and specific.\n\nThe question is:\n\"\"\"\n{prompt}\n\"\"\"\n\nThe student's solution is:\n\"\"\"\n{output}\n\"\"\"\n\nThe mark scheme is: \n\"\"\"\n{markscheme}\n\"\"\"",
+        "regraded": "You are an advanced mathematics teaching assistant. Your task is to assign a grade to a student's work based solely on the question, the provided feedback, and the provided marking criteria. The grade is a number between 0 and 5, do not output anything else. \n You will now be given the question, the marking criteria and the feedback.\n\n The Question: {prompt} \n\n  The Marking Criteria written in LaTeX:\n\n While clarity and conciseness are important, correctness and mathematical rigour are the primary factors in determining a mark. Please note that marks at the extremes of the scale should be awarded where appropriate.\n\n\\paragraph{0/5 marks}: No relevant steps taken (ideas would not appear in an ideal proof); lack of understanding (e.g. alluding to unrelated results).\n\\paragraph{1/5 marks}: Some correct ideas or elements present (e.g. beginning of a proof, use of relevant definitions/theorems); mathematical argument is not valid (e.g. incorrect assumptions, misapplications of theorems)\n\\paragraph{2/5 marks}: Correct approach but would require substantial improvement (e.g. attempt at a proof); major errors present (e.g. non-trivial properties used without proof)\n\\paragraph{3/5 marks}: Correct approach with significant errors or gaps (e.g. imprecise arguments, insufficient justification)\n\\paragraph{4/5 marks}: Correct solution with minor mistakes (e.g. small logical steps omitted, arithmetic errors that do not qualitatively affect the answer)\n\\paragraph{5/5 marks}: Correct and complete solution (e.g. rigorous and well structured); minimal superfluous steps (allow some leeway, e.g. using trivial results without thorough justification).\n\n The Feedback:\n\n {llm_feedback}"
+    },
+    "parameters": {
+
+    },
+    "variables": {
+
+    }
+}
