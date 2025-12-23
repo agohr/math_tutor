@@ -1,8 +1,8 @@
-# README for Math Autocorrector
+# Math Autocorrector: Accompanying Code and Data for the Paper "Automated Feedback Generation for Undergraduate Mathematics: Development and Evaluation of an AI Teaching Assistant"
 
 ## Overview
 
-Math Autocorrector is a Python program that assists in evaluating mathematics homework assignments. It use OpenAI's language models to transcribe mathematical text from images into LaTeX and provide detailed feedback on student work.
+Math Autocorrector is a Python program that assists in evaluating mathematics homework assignments. It use OpenAI's language models to transcribe mathematical text from images into LaTeX and provide detailed feedback on student work. The present repository contains on the one hand the code for our research prototype environment including a simple graphical user interface, and on the other hand the batch processing code used to evaluate the system on our datasets. For a deeper explanation of how the datasets were created, please refer to the paper.
 
 ## Features
 
