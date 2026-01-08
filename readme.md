@@ -2,14 +2,7 @@
 
 ## Overview
 
-Math Autocorrector is a Python program that assists in evaluating mathematics homework assignments. It use OpenAI's language models to transcribe mathematical text from images into LaTeX and provide detailed feedback on student work. The present repository contains on the one hand the code for our research prototype environment including a simple graphical user interface, and on the other hand the batch processing code used to evaluate the system on our datasets. For a deeper explanation of how the datasets were created, please refer to the paper.
-
-## Features
-
-- **Image Transcription**: Converts mathematical text from images to LaTeX.
-- **Assignment Evaluation**: Analyzes student homework for correctness and completeness.
-- **Feedback Generation**: Provides detailed feedback, pinpointing errors or inaccuracies.
-- **Temporary File Management**: Manages temporary files for assignment data and feedback.
+The present repository contains code and supplementary data for the paper "Automated Feedback Generation for Undergraduate Mathematics: Development and Evaluation of an AI Teaching Assistant".
 
 ## Installation
 
@@ -38,12 +31,11 @@ Math Autocorrector is a Python program that assists in evaluating mathematics ho
 
 1. **Running the Program**: Start the program by running `math_tutor.py`.
 
-2. **User Interface**: By default, the program launches a Gradio interface in your browser for submitting homework assignments.
+2. **User Interface**: By default, the program launches a Gradio interface in your browser for submitting homework assignments. This interface can be used to test the system on freely chosen individual questions.
 
 3. **Providing Inputs**: 
    - Enter homework text in the textbox.
    - Upload an image of the homework.
-   - Use the temperature slider to adjust response generation.
 
 4. **Receiving Feedback**: The program processes inputs and displays feedback in the output section.
 
@@ -65,6 +57,8 @@ To use the program in batch processing mode, use the following argument:
 - `--problem_dir` (str): Path to the directory containing a .json file of questions, relative to the `test` directory.
 
 This will make requests to the OpenAI API asynchronously by creating one thread per test case.
+
+Batch processing mode, or more precisely batch processing mode run by specificshell scripts (see below), is used for the bulk of the evaluation work in our paper.
 
 ## Configuration
 
