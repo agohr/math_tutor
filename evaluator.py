@@ -34,6 +34,11 @@ def parse_arguments():
     return parser.parse_args()
 
 def analyze_file(file_path, key1="rating", key2="regraded"):
+    """
+    Load and filter data from a JSON file.
+    Returns items that have both rating keys and a non-empty prompt.
+    Items with missing or empty prompts are excluded from analysis.
+    """
     with open(file_path, 'r') as file:
         data = json.load(file)
 
@@ -45,6 +50,7 @@ def analyze_file(file_path, key1="rating", key2="regraded"):
     return [
         item for item in data
         if key1 in item and key2 in item
+        and 'prompt' in item and item['prompt'].strip()
     ]
 
 def get_sentence_transformers_model():

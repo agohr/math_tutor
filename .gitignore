@@ -80,3 +80,11 @@ Thumbs.db
 # results/
 # cache/
 
+# Project directories
+test/ghosts_9jan/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
