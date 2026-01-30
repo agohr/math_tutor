@@ -8,16 +8,14 @@ import atexit
 import json
 import re
 import asyncio
-import numpy as np
-import sys
 
 from dotenv import load_dotenv
 import time
 from tqdm import tqdm
 
-import evaluator
-import token_usage
-from token_usage import tracked_chat_completion, async_cached_tracked_chat_completion, username, session_costs
+import text_generation
+from text_generation import (tracked_chat_completion, async_cached_tracked_chat_completion,
+                             username)
 
 load_dotenv()
 
@@ -25,68 +23,14 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 client_openai = openai.Client()
 
-models_openai = {"text": "gpt-5.2", "vision": "gpt-4o", "precheck": "gpt-4.1-mini"}
+models_openai = {"text": "gpt-4.1-mini", "vision": "gpt-4o", "precheck": "gpt-4.1-mini"}
 # Overrides the text model in models_openai in the format stage: model
 directives_model = {"question": "gpt-4.1-mini", "solution": "gpt-4.1-mini"}
 # Overrides the temperature passed as an argument
 directives_temperature = {"question": 0.0, "solution": 0.0}
 
-# Reasoning models whitelist - these models have special handling requirements
-REASONING_MODELS = {
-    "gpt-5", "gpt-5-mini", "gpt-5-nano", "o4-mini"
-}
 
 WARNING_ACKNOWLEDGED = False
-
-
-def is_reasoning_model(model_name):
-    """Check if a model is a reasoning model that requires special handling."""
-    if not model_name:
-        return False
-    
-    # Check exact matches first
-    if model_name in REASONING_MODELS:
-        return True
-    
-    # Check for partial matches (handles versioned models like gpt-5-2025-04-14)
-    return any(reasoning_model in model_name.lower() 
-              for reasoning_model in REASONING_MODELS)
-
-
-def prepare_reasoning_model_parameters(**kwargs):
-    """Prepare parameters for reasoning model API calls."""
-    # Remove parameters that reasoning models don't support
-    reasoning_params = kwargs.copy()
-    
-    # Reasoning models typically don't support:
-    # - Custom temperature 
-    # - Custom seed
-    if "temperature" in reasoning_params:
-        print("Note: Removing temperature parameter for reasoning model compatibility")
-        del reasoning_params["temperature"]
-    
-    # Some reasoning models don't support seed parameter
-    if "seed" in reasoning_params:
-        print("Note: Removing seed parameter for reasoning model compatibility")
-        del reasoning_params["seed"]
-    
-    # Handle model-specific parameters
-    model_name = reasoning_params.get("model", "")
-    
-    # Remove problematic parameters for all reasoning models
-    if "max_tokens" in reasoning_params:
-        del reasoning_params["max_tokens"]
-    
-    if "verbosity" in reasoning_params:
-        del reasoning_params["verbosity"]
-    
-    # Add GPT-5 specific parameters with defaults if not specified
-    if model_name.startswith("gpt-5"):
-        # Set reasoning_effort to "medium" if not specified (GPT-5 default)
-        if "reasoning_effort" not in reasoning_params:
-            reasoning_params["reasoning_effort"] = "medium"
-    
-    return reasoning_params
 
 
 class Settings:
@@ -140,6 +84,19 @@ class Settings:
     def set_config_to_default(self):
         self.config = self.default_config
 
+    def load_config(self):
+        try:
+            with open(os.path.join('configs', self.config_path)) as f:
+                config_data = json.load(f)
+                print("Config file found.")
+                for key in config_data:
+                    settings.config[key] = config_data[
+                        key]  # mutates the config in settings.config
+                    print(f"Setting {key} to {repr(config_data[key])}")
+        except (FileNotFoundError, ValueError, json.JSONDecodeError) as e:
+            print(f"Error reading config file at {self.config_path}:")
+            raise e
+
     @property
     def problem_files(self):
         for file in os.listdir(self.problem_dir):
@@ -174,10 +131,6 @@ class Settings:
         # Apply command line model override if specified
         if self.model_override:
             final_parameters["model"] = self.model_override
-        
-        # Handle reasoning models that don't support standard parameters
-        if is_reasoning_model(final_parameters["model"]):
-            final_parameters = prepare_reasoning_model_parameters(**final_parameters)
             
         return final_parameters
 
@@ -214,16 +167,6 @@ def extract_json(text):
         return json_code.group(1)
     else:
         return text
-
-def str_to_int(s):
-    '''This function will take a string and return the integer value of the string.'''
-    try:
-        return int(s)
-    except:
-        for i, c in enumerate(s):
-            if c.isdigit():
-                return int(s[i])
-    return 0
 
 def create_temp_file_with_text(text):
     global temp_files
@@ -360,7 +303,7 @@ async def async_process_directives(async_client, assignment_data, directives, te
             "max_tokens": 4000,
         }
         
-        # Add temperature only if present (reasoning models don't have it)
+        # Add temperature only if present (certain reasoning models don't support it)
         if "temperature" in parameters:
             call_params["temperature"] = parameters["temperature"]
         
@@ -446,14 +389,15 @@ def process_input(question, solution, temperature=0.0, precheck=True, image=None
     except:
         download_data = create_temp_file_with_text("Error: Could not create download file.")
 
-    prompt_cost = session_costs[0]
-    token_usage.reset_counter()
-    cost_info = f"Prompt: ${prompt_cost:10f}\tSession: ${sum(session_costs):10f}"
+    prompt_cost = text_generation.session_costs[0]
+    text_generation.reset_session_costs_counter()
+    cost_info = f"Prompt: ${prompt_cost:10f}\tSession: ${sum(text_generation.session_costs):10f}"
 
     return displayed_output, replace_latex_delimiters(displayed_output), download_data, cost_info
 
 def process_batch_input(data, image=None, knowledge=None, temperature=0.0):
-    '''This function will take completed assignments from the batch processing step and return the feedback/grades to the user.
+    '''This function will take completed assignments, run the batch processing step
+    and return the feedback/grades to the user.
     data: list[of dicts].'''
 
     if isinstance(data, dict):
@@ -478,7 +422,7 @@ def process_batch_input(data, image=None, knowledge=None, temperature=0.0):
         final_responses = [x[0] for x in responses]
         thoughts = [x[1] for x in responses]
 
-    token_usage.reset_counter()
+    text_generation.reset_session_costs_counter()
 
     return final_responses, thoughts
 
@@ -576,31 +520,19 @@ def get_batch_feedback_on_problem_set(file_path):
 
 def main():
     '''Main function opening the user interface and handing over the input to the process_input function, which implements the backend logic, i.e. the autocorrecting math grader/tutor.'''
-    global config_data
     global settings
 
     atexit.register(cleanup_temp_files)
-    config_path = settings.config_path
 
     if settings.problem_dir is None:  # Interface mode - use defaults
         settings.set_config_to_default()
-
-    try:
-        with open(os.path.join('configs', config_path)) as f:
-            config_data = json.load(f)
-            print("Config file found.")
-            for key in config_data:
-                settings.config[key] = config_data[key]  # mutates the config in settings.config
-                print(f"Setting {key} to {repr(config_data[key])}")
-    except Exception as e:
-        print("No config file found.")
-        raise e
+    settings.load_config()
 
     # Batch mode
     if settings.problem_dir is not None:
         print("Running in batch mode.")
         batch_workflow()
-        print("Cache reads:", token_usage.cache_reads[0])
+        print("Cache reads:", text_generation.cache_reads[0])
         return
 
     # Interface mode

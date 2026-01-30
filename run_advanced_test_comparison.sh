@@ -10,7 +10,8 @@ show_help() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  --track-costs    Enable cost tracking and reporting (requires confirmation)"
+    echo "  --track-costs    Show the help message on cost tracking and reporting"
+    echo "                   before running the program (requires confirmation)"
     echo "  -h, --help       Show this help message"
     echo ""
     exit 0
@@ -36,23 +37,28 @@ done
 if [ "$TRACK_COSTS" = true ]; then
     echo ""
     echo "========================================================================="
-    echo "COST TRACKING ENABLED"
+    echo "COST TRACKING"
     echo "========================================================================="
+    echo "To enable cost tracking, use a dotenv file to set TOKEN_USAGE_USERNAME"
+    echo "in your environment to any unique identifier."
+    echo ""
     echo "This will track and display API costs based on published pricing rates"
     echo "as of the time this artifact was created."
     echo ""
     echo "NOTE: These costs are estimates based on pricing at time of publication"
     echo "and may not reflect current API pricing. This is a research artifact and"
     echo "cost tracking is provided for reproducibility purposes only."
-    echo "If you want to track costs for your own experiments reliably, modify the cost data in token_usage.py"
-    echo "to reflect current pricing."
+    echo "If you want to track costs for your own experiments reliably, modify the"
+    echo "cost data in token_usage.py to reflect current pricing."
     echo ""
-    read -p "Do you want to proceed with cost tracking? (y/N): " -n 1 -r
+    read -p "Do you want to proceed? (y/N): " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Cost tracking disabled. Continuing without cost tracking..."
-        TRACK_COSTS=false
+        exit 1
     fi
+    # Additional ease-of-use functionality is currently disabled as incomplete
+    # Cost tracking will still be done in text_generation.py if instructions are followed
+    TRACK_COSTS=false
     echo "========================================================================="
     echo ""
 fi

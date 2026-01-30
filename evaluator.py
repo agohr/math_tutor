@@ -1,12 +1,12 @@
 """
 Compute statistics comparing two sequences of integer grades
-Place the output file(s) after a run into eval/
+
+Place the file(s) created after running and grading into the
+input directory (--input_directory, default eval/).
 
 Run evaluator to compute the statistics over the joined data
-    across all data files. Correlation is given a bootstrap confidence interval
-
-Run evaluator_aggregate to compute the median, min. and max. statistic
-    for all data files.
+across ALL data files found. To compute statistics over multiple runs,
+use aggregate_bootstrap_regrading.py instead, or call get_statistics directly.
 """
 
 import argparse
@@ -28,8 +28,8 @@ bootstrap_N = 10_000
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Analyze and output statistics on grading data.")
-    parser.add_argument("--input_directory", type=str, help="Directory containing the input files.")
-    parser.add_argument("--output_file", type=str, help="File path to save the output JSON data.")
+    parser.add_argument("--input_directory", type=str, default="eval", help="Directory containing the input files.")
+    parser.add_argument("--output_file", type=str, default="eval_output.json", help="File path to save the output JSON data.")
     parser.add_argument("--no_bootstrap", action="store_true", help="Disable bootstrap confidence intervals (faster).")
     return parser.parse_args()
 

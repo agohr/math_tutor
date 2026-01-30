@@ -1,4 +1,7 @@
-"""Tracks token usage locally when TOKEN_USAGE_USERNAME is set in .env."""
+"""
+Generate LLM outputs from an API.
+Tracks token usage locally when TOKEN_USAGE_USERNAME is set in .env.
+"""
 
 import os
 import csv
@@ -23,6 +26,7 @@ cost_per_token = {
     "gpt-4o-2024-08-06": [0.0000025, 0.00001],  # :contentReference[oaicite:2]{index=2}
 
     # GPT-4o mini
+    "gpt-4o-mini-2024-07-18": [0.00000015, 0.0000006],
     "gpt-4o-mini": [0.00000015, 0.0000006],  # $0.15 / 1M input, $0.60 / 1M output :contentReference[oaicite:3]{index=3}
 
     # GPT-3.5
@@ -51,6 +55,11 @@ cost_per_token = {
     "unknown": [0.0, 0.0],
 }
 
+# Reasoning models whitelist - these models have special handling requirements
+REASONING_MODELS = {
+    "gpt-5", "gpt-5-mini", "gpt-5-nano", "o4-mini"
+}
+
 session_costs = [0]
 cache_reads = [0]
 
@@ -59,7 +68,7 @@ record_lock = asyncio.Lock()
 cache_lock = asyncio.Lock()
 
 
-def reset_counter():
+def reset_session_costs_counter():
     session_costs.insert(0, 0)
 
 
@@ -70,6 +79,8 @@ async def async_cached_tracked_chat_completion(client, label, *args, enable_cach
 
     async with cache_lock:
         dictionary = {}
+        if not os.path.exists('cache'):
+            os.mkdir('cache')
         # merge dictionaries together, overwriting clashing keys
         for file in os.listdir('cache'):
             complete_file_path = os.path.join('cache', file)
@@ -127,50 +138,39 @@ async def record(usage, label, model):
         print(f"Warning: FileNotFoundError({err}) when writing to tracker.")
 
 
-def is_reasoning_model_local(model_name):
-    """Local copy of reasoning model detection to avoid circular imports."""
-    if not model_name:
-        return False
-    
-    reasoning_models = {
-        "gpt-5", "gpt-5-mini", "gpt-5-nano", "o4-mini"
-    }
-    
-    # Check exact matches first
-    if model_name in reasoning_models:
+def is_reasoning_model(model_name):
+    """Check if a model is a reasoning model that requires special handling."""
+    if model_name in REASONING_MODELS:
         return True
-    
-    # Check for partial matches
-    return any(reasoning_model in model_name.lower() 
-              for reasoning_model in reasoning_models)
+    # Check for partial matches (handles versioned models like gpt-5-2025-04-14)
+    if model_name and any(reasoning_model in model_name.lower()
+                          for reasoning_model in REASONING_MODELS):
+        return True
+    return False
 
 
-def prepare_reasoning_parameters(**kwargs):
-    """Prepare parameters for reasoning model API calls."""
+def prepare_reasoning_model_parameters(**kwargs):
+    """Remove parameters that reasoning models typically don't support."""
     reasoning_params = kwargs.copy()
-    
+
+    # OpenAI reasoning models typically don't support custom temperature or seed
     if "temperature" in reasoning_params:
+        print("Note: Removing temperature parameter for reasoning model compatibility")
         del reasoning_params["temperature"]
-    
+
     if "seed" in reasoning_params:
+        print("Note: Removing seed parameter for reasoning model compatibility")
         del reasoning_params["seed"]
-    
-    # Handle model-specific parameters
-    model_name = reasoning_params.get("model", "")
-    
+
+    # model_name = reasoning_params.get("model", "")
+
     # Remove problematic parameters for all reasoning models
     if "max_tokens" in reasoning_params:
         del reasoning_params["max_tokens"]
-    
+
     if "verbosity" in reasoning_params:
         del reasoning_params["verbosity"]
-    
-    # Add GPT-5 specific parameters with defaults if not specified
-    if model_name.startswith("gpt-5"):
-        # Set reasoning_effort to "medium" if not specified (GPT-5 default)
-        if "reasoning_effort" not in reasoning_params:
-            reasoning_params["reasoning_effort"] = "medium"
-    
+
     return reasoning_params
 
 
@@ -186,8 +186,8 @@ def tracked_chat_completion(client, label, *args, **kwargs):
     
     # Handle reasoning models differently
     model_name = kwargs.get("model", "unknown")
-    if is_reasoning_model_local(model_name):
-        kwargs = prepare_reasoning_parameters(**kwargs)
+    if is_reasoning_model(model_name):
+        kwargs = prepare_reasoning_model_parameters(**kwargs)
 
     response = client.chat.completions.create(*args, **kwargs)
     if username is not None:
@@ -201,8 +201,8 @@ async def async_tracked_chat_completion(async_client, label, *args, **kwargs):
 
     # Handle reasoning models differently
     model_name = kwargs.get("model", "unknown")
-    if is_reasoning_model_local(model_name):
-        kwargs = prepare_reasoning_parameters(**kwargs)
+    if is_reasoning_model(model_name):
+        kwargs = prepare_reasoning_model_parameters(**kwargs)
 
     #response = await cache(async_client, args, kwargs)
     response = await async_client.chat.completions.create(*args, **kwargs)
