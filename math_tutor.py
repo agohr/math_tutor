@@ -8,16 +8,14 @@ import atexit
 import json
 import re
 import asyncio
-import numpy as np
-import sys
 
 from dotenv import load_dotenv
 import time
 from tqdm import tqdm
 
-import evaluator
-import token_usage
-from token_usage import tracked_chat_completion, async_cached_tracked_chat_completion, username, session_costs
+import text_generation
+from text_generation import (tracked_chat_completion, async_cached_tracked_chat_completion,
+                             username)
 
 load_dotenv()
 
@@ -25,7 +23,7 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 client_openai = openai.Client()
 
-models_openai = {"text": "gpt-5.2", "vision": "gpt-4o", "precheck": "gpt-4.1-mini"}
+models_openai = {"text": "gpt-4.1-mini", "vision": "gpt-4o", "precheck": "gpt-4.1-mini"}
 # Overrides the text model in models_openai in the format stage: model
 directives_model = {"question": "gpt-4.1-mini", "solution": "gpt-4.1-mini"}
 # Overrides the temperature passed as an argument
@@ -169,16 +167,6 @@ def extract_json(text):
         return json_code.group(1)
     else:
         return text
-
-def str_to_int(s):
-    '''This function will take a string and return the integer value of the string.'''
-    try:
-        return int(s)
-    except:
-        for i, c in enumerate(s):
-            if c.isdigit():
-                return int(s[i])
-    return 0
 
 def create_temp_file_with_text(text):
     global temp_files
@@ -401,14 +389,15 @@ def process_input(question, solution, temperature=0.0, precheck=True, image=None
     except:
         download_data = create_temp_file_with_text("Error: Could not create download file.")
 
-    prompt_cost = session_costs[0]
-    token_usage.reset_counter()
-    cost_info = f"Prompt: ${prompt_cost:10f}\tSession: ${sum(session_costs):10f}"
+    prompt_cost = text_generation.session_costs[0]
+    text_generation.reset_session_costs_counter()
+    cost_info = f"Prompt: ${prompt_cost:10f}\tSession: ${sum(text_generation.session_costs):10f}"
 
     return displayed_output, replace_latex_delimiters(displayed_output), download_data, cost_info
 
 def process_batch_input(data, image=None, knowledge=None, temperature=0.0):
-    '''This function will take completed assignments from the batch processing step and return the feedback/grades to the user.
+    '''This function will take completed assignments, run the batch processing step
+    and return the feedback/grades to the user.
     data: list[of dicts].'''
 
     if isinstance(data, dict):
@@ -433,7 +422,7 @@ def process_batch_input(data, image=None, knowledge=None, temperature=0.0):
         final_responses = [x[0] for x in responses]
         thoughts = [x[1] for x in responses]
 
-    token_usage.reset_counter()
+    text_generation.reset_session_costs_counter()
 
     return final_responses, thoughts
 
@@ -543,7 +532,7 @@ def main():
     if settings.problem_dir is not None:
         print("Running in batch mode.")
         batch_workflow()
-        print("Cache reads:", token_usage.cache_reads[0])
+        print("Cache reads:", text_generation.cache_reads[0])
         return
 
     # Interface mode

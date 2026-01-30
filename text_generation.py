@@ -1,4 +1,7 @@
-"""Tracks token usage locally when TOKEN_USAGE_USERNAME is set in .env."""
+"""
+Generate LLM outputs from an API.
+Tracks token usage locally when TOKEN_USAGE_USERNAME is set in .env.
+"""
 
 import os
 import csv
@@ -65,7 +68,7 @@ record_lock = asyncio.Lock()
 cache_lock = asyncio.Lock()
 
 
-def reset_counter():
+def reset_session_costs_counter():
     session_costs.insert(0, 0)
 
 

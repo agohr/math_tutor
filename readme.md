@@ -60,6 +60,10 @@ This will make requests to the OpenAI API asynchronously by creating one thread 
 
 Batch processing mode, or more precisely batch processing mode run by specificshell scripts (see below), is used for the bulk of the evaluation work in our paper.
 
+```
+py math_tutor.py --temperature 0.0 --config basic.json --problem_dir example --no_cache`
+```
+
 ## Configuration
 
 Adjust the program's behavior via the config file, setting parameters like instructions for the various processing steps, and task directives. Different configurations can be used for different tasks and can be specified via the `--config` command line parameter at startup as indicated in the previous section. This can drastically change behaviour, e.g. it would be possible to change the program from a evaluator to a problem solver just by changing the configuration file. Various pre-set configuration files are provided in the `configs` directory.
@@ -73,11 +77,8 @@ Two shell scripts are provided for running comprehensive evaluations across mult
 Runs evaluations on the advanced test dataset with multiple models and configurations in parallel.
 
 ```bash
-# Run without cost tracking (default)
+# Run evaluations
 ./run_advanced_test_comparison.sh
-
-# Run with cost tracking (requires confirmation)
-./run_advanced_test_comparison.sh --track-costs
 
 # Show help
 ./run_advanced_test_comparison.sh --help
@@ -88,23 +89,19 @@ Runs evaluations on the advanced test dataset with multiple models and configura
 Runs evaluations on the main test dataset with regrading across multiple models and configurations.
 
 ```bash
-# Run without cost tracking (default)
+# Run evaluations
 ./run_regrading_comparison.sh
-
-# Run with cost tracking (requires confirmation)
-./run_regrading_comparison.sh --track-costs
 
 # Show help
 ./run_regrading_comparison.sh --help
 ```
 
-### Cost Tracking (Optional)
+### Cost Tracking
 
-Cost tracking is an **optional feature** that estimates API costs based on published pricing rates at the time this research artifact was created. 
+Cost tracking is an **optional feature** that estimates API costs based on published pricing rates at the time this research artifact was created. Cost tracking requires explicit opt-in by using the dotenv file to set `TOKEN_USAGE_USERNAME` in your environment to any string.
+Run `text_generation.py` to view all costs recorded under the same username string.
 
-⚠️ **Important**: These costs are estimates only. Actual costs may vary as API providers update their pricing. Cost tracking requires explicit opt-in with the `--track-costs` flag and interactive confirmation. We do not plan to update the cost data in token_usage.py to reflect current pricing, so future users will have to modify the cost data to reflect current pricing. We also do not plan to update this data to include new models.
-
-For detailed information about cost tracking, see [COST_TRACKING_README.md](COST_TRACKING_README.md).
+⚠ **Important**: These costs are estimates only. Actual costs may vary as API providers update their pricing. We do not plan to update the cost data in token_usage.py to reflect current pricing, so future users will have to modify the cost data to reflect current pricing. We also do not plan to update this data to include new models.
 
 ## Cleanup
 
