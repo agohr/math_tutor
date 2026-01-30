@@ -31,62 +31,8 @@ directives_model = {"question": "gpt-4.1-mini", "solution": "gpt-4.1-mini"}
 # Overrides the temperature passed as an argument
 directives_temperature = {"question": 0.0, "solution": 0.0}
 
-# Reasoning models whitelist - these models have special handling requirements
-REASONING_MODELS = {
-    "gpt-5", "gpt-5-mini", "gpt-5-nano", "o4-mini"
-}
 
 WARNING_ACKNOWLEDGED = False
-
-
-def is_reasoning_model(model_name):
-    """Check if a model is a reasoning model that requires special handling."""
-    if not model_name:
-        return False
-    
-    # Check exact matches first
-    if model_name in REASONING_MODELS:
-        return True
-    
-    # Check for partial matches (handles versioned models like gpt-5-2025-04-14)
-    return any(reasoning_model in model_name.lower() 
-              for reasoning_model in REASONING_MODELS)
-
-
-def prepare_reasoning_model_parameters(**kwargs):
-    """Prepare parameters for reasoning model API calls."""
-    # Remove parameters that reasoning models don't support
-    reasoning_params = kwargs.copy()
-    
-    # Reasoning models typically don't support:
-    # - Custom temperature 
-    # - Custom seed
-    if "temperature" in reasoning_params:
-        print("Note: Removing temperature parameter for reasoning model compatibility")
-        del reasoning_params["temperature"]
-    
-    # Some reasoning models don't support seed parameter
-    if "seed" in reasoning_params:
-        print("Note: Removing seed parameter for reasoning model compatibility")
-        del reasoning_params["seed"]
-    
-    # Handle model-specific parameters
-    model_name = reasoning_params.get("model", "")
-    
-    # Remove problematic parameters for all reasoning models
-    if "max_tokens" in reasoning_params:
-        del reasoning_params["max_tokens"]
-    
-    if "verbosity" in reasoning_params:
-        del reasoning_params["verbosity"]
-    
-    # Add GPT-5 specific parameters with defaults if not specified
-    if model_name.startswith("gpt-5"):
-        # Set reasoning_effort to "medium" if not specified (GPT-5 default)
-        if "reasoning_effort" not in reasoning_params:
-            reasoning_params["reasoning_effort"] = "medium"
-    
-    return reasoning_params
 
 
 class Settings:
@@ -140,6 +86,19 @@ class Settings:
     def set_config_to_default(self):
         self.config = self.default_config
 
+    def load_config(self):
+        try:
+            with open(os.path.join('configs', self.config_path)) as f:
+                config_data = json.load(f)
+                print("Config file found.")
+                for key in config_data:
+                    settings.config[key] = config_data[
+                        key]  # mutates the config in settings.config
+                    print(f"Setting {key} to {repr(config_data[key])}")
+        except (FileNotFoundError, ValueError, json.JSONDecodeError) as e:
+            print(f"Error reading config file at {self.config_path}:")
+            raise e
+
     @property
     def problem_files(self):
         for file in os.listdir(self.problem_dir):
@@ -174,10 +133,6 @@ class Settings:
         # Apply command line model override if specified
         if self.model_override:
             final_parameters["model"] = self.model_override
-        
-        # Handle reasoning models that don't support standard parameters
-        if is_reasoning_model(final_parameters["model"]):
-            final_parameters = prepare_reasoning_model_parameters(**final_parameters)
             
         return final_parameters
 
@@ -360,7 +315,7 @@ async def async_process_directives(async_client, assignment_data, directives, te
             "max_tokens": 4000,
         }
         
-        # Add temperature only if present (reasoning models don't have it)
+        # Add temperature only if present (certain reasoning models don't support it)
         if "temperature" in parameters:
             call_params["temperature"] = parameters["temperature"]
         
@@ -576,25 +531,13 @@ def get_batch_feedback_on_problem_set(file_path):
 
 def main():
     '''Main function opening the user interface and handing over the input to the process_input function, which implements the backend logic, i.e. the autocorrecting math grader/tutor.'''
-    global config_data
     global settings
 
     atexit.register(cleanup_temp_files)
-    config_path = settings.config_path
 
     if settings.problem_dir is None:  # Interface mode - use defaults
         settings.set_config_to_default()
-
-    try:
-        with open(os.path.join('configs', config_path)) as f:
-            config_data = json.load(f)
-            print("Config file found.")
-            for key in config_data:
-                settings.config[key] = config_data[key]  # mutates the config in settings.config
-                print(f"Setting {key} to {repr(config_data[key])}")
-    except Exception as e:
-        print("No config file found.")
-        raise e
+    settings.load_config()
 
     # Batch mode
     if settings.problem_dir is not None:
