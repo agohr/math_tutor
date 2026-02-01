@@ -111,7 +111,7 @@ python run_advanced_test_with_hints_comparison.py --help
 
 ### run_ghosts_comparison.py
 
-Runs evaluations on the ghosts_9jan dataset across multiple models and configurations. Supports parallel execution.
+Runs evaluations on the ghosts_9jan dataset (needs to be obtained separately from the GitHub of Frieder et al and placed into the correct directory as indicated in the code) across multiple models and configurations. Supports parallel execution.
 
 ```bash
 # Run with default settings
