@@ -63,7 +63,6 @@ def show_help():
     print("Usage: python run_advanced_test_with_hints_comparison.py [OPTIONS]")
     print()
     print("Options:")
-    print("  --track-costs    Enable cost tracking and reporting (requires confirmation)")
     print("  --max-workers N  Maximum number of parallel workers (default: 4)")
     print("  -h, --help       Show this help message")
     print()
@@ -75,8 +74,6 @@ def parse_arguments():
         description="Run regrading comparison on advanced_test_with_hints dataset",
         add_help=False
     )
-    parser.add_argument("--track-costs", action="store_true", 
-                       help="Enable cost tracking and reporting")
     parser.add_argument("--max-workers", type=int, default=4,
                        help="Maximum number of parallel workers")
     parser.add_argument("-h", "--help", action="store_true",
@@ -91,47 +88,14 @@ def parse_arguments():
     return args
 
 
-def confirm_cost_tracking():
-    """Ask user to confirm cost tracking."""
-    print()
-    print("=" * 73)
-    print("COST TRACKING ENABLED")
-    print("=" * 73)
-    print("This will track and display API costs based on published pricing rates")
-    print("as of the time this artifact was created.")
-    print()
-    print("NOTE: These costs are estimates based on pricing at time of publication")
-    print("and may not reflect current API pricing. This is a research artifact and")
-    print("cost tracking is provided for reproducibility purposes only.")
-    print("If you want to track costs for your own experiments reliably, modify the cost data in token_usage.py")
-    print("to reflect current pricing.")
-    print()
-    response = input("Do you want to proceed with cost tracking? (y/N): ")
-    print("=" * 73)
-    print()
-    
-    return response.strip().lower() in ['y', 'yes']
-
-
-def run_single_combination(config, model, config_name, model_name, track_costs):
+def run_single_combination(config, model, config_name, model_name):
     """
     Run a single model/config combination.
     
     Returns:
-        tuple: (success, config_name, model_name, cost, skipped)
+        tuple: (success, config_name, model_name, skipped)
     """
     print(f"Starting: Config={config_name}, Model={model_name}")
-    
-    # Clear usage tracking if cost tracking is enabled
-    if track_costs:
-        try:
-            subprocess.run(
-                ["python", "extract_cost.py", "--clear"],
-                capture_output=True,
-                check=False
-            )
-        except Exception:
-            pass
     
     # Build command
     cmd = [
@@ -150,7 +114,7 @@ def run_single_combination(config, model, config_name, model_name, track_costs):
         existing_files = list(model_output_dir.glob(f"*{config_name}*.json"))
         if existing_files:
             print(f"Skipping: Config={config_name}, Model={model_name} (output already exists)")
-            return (True, config_name, model_name, 0.0, True)  # skipped
+            return (True, config_name, model_name, True)  # skipped
     
     # Run the regrading with "y" piped to stdin for confirmation
     try:
@@ -163,26 +127,8 @@ def run_single_combination(config, model, config_name, model_name, track_costs):
         )
         
         if result.returncode == 0:
-            cost = 0.0
-            if track_costs:
-                try:
-                    cost_result = subprocess.run(
-                        ["python", "extract_cost.py"],
-                        capture_output=True,
-                        text=True,
-                        check=False
-                    )
-                    if cost_result.returncode == 0:
-                        cost = float(cost_result.stdout.strip() or "0.0")
-                except Exception:
-                    cost = 0.0
-            
-            if track_costs:
-                print(f"✓ Completed: {config_name} with {model_name} (Cost: ${cost:.6f})")
-            else:
-                print(f"✓ Completed: {config_name} with {model_name}")
-            
-            return (True, config_name, model_name, cost, False)
+            print(f"✓ Completed: {config_name} with {model_name}")
+            return (True, config_name, model_name, False)
         else:
             print(f"✗ Failed: {config_name} with {model_name}")
             # Save full error output to file for debugging
@@ -199,12 +145,12 @@ def run_single_combination(config, model, config_name, model_name, track_costs):
                 f.write(result.stderr)
             print(f"  Full error saved to: {error_log_file}")
             print(f"  Error preview: {result.stderr[:200]}")
-            return (False, config_name, model_name, 0.0, False)
+            return (False, config_name, model_name, False)
             
     except Exception as e:
         print(f"✗ Failed: {config_name} with {model_name}")
         print(f"  Exception: {str(e)}")
-        return (False, config_name, model_name, 0.0, False)
+        return (False, config_name, model_name, False)
 
 
 def evaluate_single_model(model_name):
@@ -307,22 +253,12 @@ def main():
     """Main execution function."""
     args = parse_arguments()
     
-    # Handle cost tracking confirmation
-    track_costs = args.track_costs
-    if track_costs:
-        if not confirm_cost_tracking():
-            print("Cost tracking disabled. Continuing without cost tracking...")
-            track_costs = False
-    
     print("Starting advanced test cases with hints comparison script...")
     print("=" * 49)
     
     # Create results directories
     Path("results/advanced_test_with_hints_comparison").mkdir(parents=True, exist_ok=True)
     Path("results/advanced_test_with_hints_evaluations").mkdir(parents=True, exist_ok=True)
-    
-    # Initialize cost tracking
-    cost_data = []
     
     print()
     print("Running regrading tasks in parallel...")
@@ -344,20 +280,18 @@ def main():
         futures = {
             executor.submit(
                 run_single_combination, 
-                config, model, config_name, model_name, track_costs
+                config, model, config_name, model_name
             ): (config_name, model_name)
             for config, model, config_name, model_name in combinations
         }
         
         for future in as_completed(futures):
-            success, config_name, model_name, cost, skipped = future.result()
+            success, config_name, model_name, skipped = future.result()
             
             if skipped:
                 skipped_count += 1
             elif success:
                 completed_count += 1
-                if track_costs:
-                    cost_data.append((config_name, model_name, cost))
             else:
                 failed_count += 1
     
@@ -368,23 +302,6 @@ def main():
     print(f"✗ Failed: {failed_count}")
     print(f"⊘ Skipped: {skipped_count} (output already exists)")
     print(f"Total: {len(combinations)} combinations")
-    
-    # Display cost summary if enabled
-    if track_costs and cost_data:
-        print()
-        print("Cost Summary by Model/Config Combination:")
-        print("=" * 40)
-        print(f"{'Config':<26} | {'Model':<26} | {'Cost (USD)'}")
-        print("-" * 27 + "|" + "-" * 28 + "|" + "-" * 12)
-        
-        total_cost = 0.0
-        for config, model, cost in cost_data:
-            print(f"{config:<26} | {model:<26} | ${cost:.6f}")
-            total_cost += cost
-        
-        print("-" * 27 + "|" + "-" * 28 + "|" + "-" * 12)
-        print(f"{'TOTAL':<26} | {'':<26} | ${total_cost:.6f}")
-        print()
     
     # Wait for file system
     time.sleep(3)
@@ -445,15 +362,6 @@ def main():
     else:
         print("✗ Combined evaluation failed")
     
-    # Save cost data if enabled
-    if track_costs and cost_data:
-        timestamp = time.strftime('%Y-%m-%d_%H-%M-%S')
-        cost_file = Path("results/advanced_test_with_hints_comparison") / f"costs_{timestamp}.csv"
-        with open(cost_file, 'w') as f:
-            for config, model, cost in cost_data:
-                f.write(f"{config},{model},{cost:.6f}\n")
-        print(f"Cost data saved to: {cost_file}")
-    
     print()
     print("=" * 40)
     print("Script completed!")
@@ -463,8 +371,6 @@ def main():
     print(f"- Output results: tests/{PROBLEM_DIR}/output/ (organized by model)")
     print("- Individual model evaluations: results/advanced_test_with_hints_evaluations/{{model_name}}_comparison.json")
     print("- Combined evaluation: results/advanced_test_with_hints_evaluations/all_models_combined.json")
-    if track_costs:
-        print("- Cost breakdown: results/advanced_test_with_hints_comparison/costs_*.csv")
     print()
     print("To view individual output files by model:")
     print(f"  find tests/{PROBLEM_DIR}/output -name '*.json' -type f")

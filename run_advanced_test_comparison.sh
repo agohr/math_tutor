@@ -4,13 +4,10 @@
 # This script runs the same analysis as the main comparison but on the advanced_test_cases dataset
 
 # Parse command line arguments
-TRACK_COSTS=false
-
 show_help() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  --track-costs    Enable cost tracking and reporting (requires confirmation)"
     echo "  -h, --help       Show this help message"
     echo ""
     exit 0
@@ -18,10 +15,6 @@ show_help() {
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --track-costs)
-            TRACK_COSTS=true
-            shift
-            ;;
         -h|--help)
             show_help
             ;;
@@ -31,31 +24,6 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-
-# If cost tracking is enabled, require confirmation
-if [ "$TRACK_COSTS" = true ]; then
-    echo ""
-    echo "========================================================================="
-    echo "COST TRACKING ENABLED"
-    echo "========================================================================="
-    echo "This will track and display API costs based on published pricing rates"
-    echo "as of the time this artifact was created."
-    echo ""
-    echo "NOTE: These costs are estimates based on pricing at time of publication"
-    echo "and may not reflect current API pricing. This is a research artifact and"
-    echo "cost tracking is provided for reproducibility purposes only."
-    echo "If you want to track costs for your own experiments reliably, modify the cost data in token_usage.py"
-    echo "to reflect current pricing."
-    echo ""
-    read -p "Do you want to proceed with cost tracking? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Cost tracking disabled. Continuing without cost tracking..."
-        TRACK_COSTS=false
-    fi
-    echo "========================================================================="
-    echo ""
-fi
 
 echo "Starting advanced test cases comparison script..."
 echo "================================================="
@@ -117,11 +85,6 @@ model_names=(
 mkdir -p results/advanced_test_comparison
 mkdir -p results/advanced_test_evaluations
 
-# Initialize cost tracking file only if enabled
-if [ "$TRACK_COSTS" = true ]; then
-    rm -f temp_costs_advanced.csv
-fi
-
 echo "Running regrading tasks in parallel..."
 echo "======================================"
 
@@ -134,11 +97,6 @@ run_combination() {
     
     echo "Starting: Config=$config_name, Model=$model_name (PID=$$)"
     
-    # Clear usage tracking before this run (only if cost tracking enabled)
-    if [ "$TRACK_COSTS" = true ]; then
-        python extract_cost.py --clear > /dev/null 2>&1
-    fi
-    
     # Build command with cache disabled - using advanced_test as problem_dir
     local cmd="python math_tutor.py --problem_dir advanced_test --config $config --no_cache"
     if [ -n "$model" ]; then
@@ -149,14 +107,7 @@ run_combination() {
     local log_file="temp_log_advanced_${config_name}_${model_name}.log"
     
     if echo "y" | $cmd > "$log_file" 2>&1; then
-        # Extract cost for this run (only if cost tracking enabled)
-        if [ "$TRACK_COSTS" = true ]; then
-            local cost=$(python extract_cost.py 2>/dev/null || echo "0.000000")
-            echo "${config_name},${model_name},${cost}" >> "temp_costs_advanced.csv"
-            echo "✓ Completed: $config_name with $model_name (Cost: \$${cost})"
-        else
-            echo "✓ Completed: $config_name with $model_name"
-        fi
+        echo "✓ Completed: $config_name with $model_name"
         rm -f "$log_file"  # Clean up log on success
         return 0
     else
@@ -218,26 +169,6 @@ echo "✓ Successful: $completed_count"
 echo "✗ Failed: $failed_count"
 echo "⊘ Skipped: $skipped_count (output already exists)"
 echo "Total: $((${#pids[@]} + $skipped_count)) combinations"
-
-# Display cost summary if cost tracking is enabled and we have cost data
-if [ "$TRACK_COSTS" = true ] && [ -f "temp_costs_advanced.csv" ]; then
-    echo ""
-    echo "Cost Summary by Model/Config Combination:"
-    echo "========================================"
-    echo "Config                     | Model                      | Cost (USD)"
-    echo "---------------------------|----------------------------|------------"
-    
-    total_cost=0
-    while IFS=',' read -r config model cost; do
-        printf "%-26s | %-26s | \$%s\n" "$config" "$model" "$cost"
-        # Add to total (using awk for floating point arithmetic)
-        total_cost=$(awk -v total="$total_cost" -v cost="$cost" 'BEGIN {printf "%.6f", total + cost}')
-    done < "temp_costs_advanced.csv"
-    
-    echo "---------------------------|----------------------------|------------"
-    printf "%-26s | %-26s | \$%s\n" "TOTAL" "" "$total_cost"
-    echo ""
-fi
 
 # Wait a moment for file system to settle
 sleep 3
@@ -341,15 +272,8 @@ else
     echo "✗ Combined evaluation failed"
 fi
 
-# Save cost data permanently and clean up temporary files (only if cost tracking enabled)
-if [ "$TRACK_COSTS" = true ] && [ -f "temp_costs_advanced.csv" ]; then
-    timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
-    cp temp_costs_advanced.csv "results/advanced_test_comparison/costs_${timestamp}.csv"
-    echo "Cost data saved to: results/advanced_test_comparison/costs_${timestamp}.csv"
-fi
-
 # Clean up any remaining temporary files
-rm -f temp_log_advanced_*.log temp_costs_advanced.csv
+rm -f temp_log_advanced_*.log
 
 echo ""
 echo "========================================"
@@ -360,9 +284,6 @@ echo "Generated files:"
 echo "- Output results: tests/advanced_test/output/ (organized by model)"
 echo "- Individual model evaluations: results/advanced_test_evaluations/{model_name}_comparison.json"
 echo "- Combined evaluation: results/advanced_test_evaluations/all_models_combined.json"
-if [ "$TRACK_COSTS" = true ]; then
-    echo "- Cost breakdown: results/advanced_test_comparison/costs_*.csv"
-fi
 echo ""
 echo "To view individual output files by model:"
 echo "find tests/advanced_test/output -name '*.json' -type f"

@@ -58,7 +58,7 @@ To use the program in batch processing mode, use the following argument:
 
 This will make requests to the OpenAI API asynchronously by creating one thread per test case.
 
-Batch processing mode, or more precisely batch processing mode run by specificshell scripts (see below), is used for the bulk of the evaluation work in our paper.
+Batch processing mode, or more precisely batch processing mode run by specific shell scripts (see below), is used for the bulk of the evaluation work in our paper.
 
 ## Configuration
 
@@ -66,45 +66,105 @@ Adjust the program's behavior via the config file, setting parameters like instr
 
 ## Evaluation Scripts
 
-Two shell scripts are provided for running comprehensive evaluations across multiple models and configurations:
-
-### run_advanced_test_comparison.sh
-
-Runs evaluations on the advanced test dataset with multiple models and configurations in parallel.
-
-```bash
-# Run without cost tracking (default)
-./run_advanced_test_comparison.sh
-
-# Run with cost tracking (requires confirmation)
-./run_advanced_test_comparison.sh --track-costs
-
-# Show help
-./run_advanced_test_comparison.sh --help
-```
+Multiple scripts are provided for running comprehensive evaluations across different test datasets, models, and configurations:
 
 ### run_regrading_comparison.sh
 
 Runs evaluations on the main test dataset with regrading across multiple models and configurations.
 
 ```bash
-# Run without cost tracking (default)
+# Run
 ./run_regrading_comparison.sh
-
-# Run with cost tracking (requires confirmation)
-./run_regrading_comparison.sh --track-costs
 
 # Show help
 ./run_regrading_comparison.sh --help
 ```
 
-### Cost Tracking (Optional)
+### run_advanced_test_comparison.sh
 
-Cost tracking is an **optional feature** that estimates API costs based on published pricing rates at the time this research artifact was created. 
+Runs evaluations on the advanced test dataset with multiple models and configurations in parallel.
 
-⚠️ **Important**: These costs are estimates only. Actual costs may vary as API providers update their pricing. Cost tracking requires explicit opt-in with the `--track-costs` flag and interactive confirmation. We do not plan to update the cost data in token_usage.py to reflect current pricing, so future users will have to modify the cost data to reflect current pricing. We also do not plan to update this data to include new models.
+```bash
+# Run
+./run_advanced_test_comparison.sh
 
-For detailed information about cost tracking, see [COST_TRACKING_README.md](COST_TRACKING_README.md).
+# Show help
+./run_advanced_test_comparison.sh --help
+```
+
+### run_advanced_test_with_hints_comparison.py
+
+Runs evaluations on the advanced test dataset with hints across multiple models and configurations. Supports parallel execution.
+
+```bash
+# Run with default settings
+python run_advanced_test_with_hints_comparison.py
+
+# Run with custom number of parallel workers
+python run_advanced_test_with_hints_comparison.py --max-workers 8
+
+# Show help
+python run_advanced_test_with_hints_comparison.py --help
+```
+
+### run_ghosts_comparison.py
+
+Runs evaluations on the ghosts_9jan dataset across multiple models and configurations. Supports parallel execution.
+
+```bash
+# Run with default settings
+python run_ghosts_comparison.py
+
+# Run with custom number of parallel workers
+python run_ghosts_comparison.py --max-workers 8
+
+# Show help
+python run_ghosts_comparison.py --help
+```
+
+## Processing and Utility Scripts
+
+### evaluator.py
+
+Core evaluation script that computes statistical comparisons between AI-generated grades and ground truth grades. Calculates Pearson correlation, Kendall tau, Spearman rank correlation, percent agreement, and other metrics.
+
+```bash
+# Evaluate results from a directory
+python evaluator.py --input_directory tests/test/output/gpt-5 --output_file results/gpt-5_eval.json
+
+# Skip bootstrap confidence intervals (faster)
+python evaluator.py --input_directory <dir> --output_file <file> --no_bootstrap
+```
+
+This script is called automatically by the evaluation comparison scripts, but can also be used independently.
+
+### aggregate_eval_stats.py
+
+Helper script to aggregate evaluation statistics from per-file results. Computes weighted averages of correlation metrics across all files for a model.
+
+```bash
+# Extract a specific statistic from evaluation results
+python aggregate_eval_stats.py <json_file> <stat_name>
+
+# Example: Get Pearson correlation
+python aggregate_eval_stats.py results/evaluations/gpt-5_comparison.json correlation
+
+# Available statistics: correlation, kendall_tau, spearman, percent_agreement, percent_close_match
+```
+
+### token_usage.py
+
+Tracks token usage locally when `TOKEN_USAGE_USERNAME` is set in `.env`. Automatically logs API usage to CSV files in the `usage/` directory during program execution.
+
+```bash
+# View cumulative token usage statistics
+python token_usage.py
+```
+
+The script automatically tracks:
+- Prompt tokens, completion tokens, and reasoning tokens (for reasoning models)
+- Cost per API call based on model pricing
+- Session-level cost tracking
 
 ## Cleanup
 
