@@ -14,42 +14,14 @@ load_dotenv()
 
 username = os.getenv("TOKEN_USAGE_USERNAME", default=None)
 
-cost_per_token = {
-    # GPT-4o
-    # Standard pricing: $2.50 / 1M input tokens, $10.00 / 1M output tokens
-    "gpt-4o": [0.0000025, 0.00001],  # :contentReference[oaicite:1]{index=1}
-    # (If you use the versioned name directly, OpenAI still bills it at the model’s standard rate; the
-    # separate higher prices you may see elsewhere are typically for fine-tuning usage, not base inference.)
-    "gpt-4o-2024-08-06": [0.0000025, 0.00001],  # :contentReference[oaicite:2]{index=2}
+# Load cost data from external JSON file
+def load_cost_per_token():
+    """Load model cost data from model_costs.json."""
+    cost_file = pathlib.Path(__file__).parent / "model_costs.json"
+    with open(cost_file, 'r') as f:
+        return json.load(f)
 
-    # GPT-4o mini
-    "gpt-4o-mini": [0.00000015, 0.0000006],  # $0.15 / 1M input, $0.60 / 1M output :contentReference[oaicite:3]{index=3}
-
-    # GPT-3.5
-    "gpt-3.5-turbo": [0.0000005, 0.0000015],  # $0.50 / 1M input, $1.50 / 1M output :contentReference[oaicite:4]{index=4}
-
-    # GPT-4.1 family (Standard pricing)
-    "gpt-4.1-nano-2025-04-14": [0.0000001, 0.0000004],  # $0.10 / 1M input, $0.40 / 1M output :contentReference[oaicite:5]{index=5}
-    "gpt-4.1-nano": [0.0000001, 0.0000004],  # alias :contentReference[oaicite:6]{index=6}
-
-    "gpt-4.1-2025-04-14": [0.000002, 0.000008],  # $2.00 / 1M input, $8.00 / 1M output :contentReference[oaicite:7]{index=7}
-    "gpt-4.1": [0.000002, 0.000008],  # alias :contentReference[oaicite:8]{index=8}
-
-    # Note: 4.1 mini pricing has changed vs older estimates.
-    "gpt-4.1-mini-2025-04-14": [0.0000004, 0.0000016],  # $0.40 / 1M input, $1.60 / 1M output :contentReference[oaicite:9]{index=9}
-    "gpt-4.1-mini": [0.0000004, 0.0000016],  # alias :contentReference[oaicite:10]{index=10}
-
-    # GPT-5 family (Standard pricing)
-    "gpt-5": [0.00000125, 0.00001],       # $1.25 / 1M input, $10.00 / 1M output :contentReference[oaicite:11]{index=11}
-    "gpt-5.2": [0.00000175, 0.000014],       # $1.75 / 1M input, $1.40 / 1M output :contentReference[oaicite:11]{index=11}
-    "gpt-5-mini": [0.00000025, 0.000002], # $0.25 / 1M input, $2.00 / 1M output :contentReference[oaicite:12]{index=12}
-    "gpt-5-nano": [0.00000005, 0.0000004],# $0.05 / 1M input, $0.40 / 1M output :contentReference[oaicite:13]{index=13}
-
-    # Reasoning model
-    "o4-mini": [0.0000011, 0.0000044],  # $1.10 / 1M input, $4.40 / 1M output :contentReference[oaicite:14]{index=14}
-
-    "unknown": [0.0, 0.0],
-}
+cost_per_token = load_cost_per_token()
 
 session_costs = [0]
 cache_reads = [0]

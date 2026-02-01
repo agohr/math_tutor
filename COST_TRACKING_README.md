@@ -2,7 +2,7 @@
 
 ## Overview
 
-Cost tracking is an **optional feature** in the evaluation scripts. It estimates API costs based on published pricing rates at the time this research artifact was created. We used the pricing feature for experiment planning; we expect they may be useful for other researchers building on our codebase as well. However, future users will have to modify the cost data in token_usage.py to reflect current pricing.
+Cost tracking is an **optional feature** in the evaluation scripts. It estimates API costs based on published pricing rates. We used the pricing feature for experiment planning; we expect they may be useful for other researchers building on our codebase as well. To reflect current pricing, update the cost data in `model_costs.json` (see `MODEL_COSTS_README.md` for details).
 
 ## Important Notes
 
@@ -83,20 +83,12 @@ For reasoning models (GPT-5, o4-mini, etc.), the system now properly accounts fo
 - **Output tokens**: Generated response tokens
 - **Reasoning tokens**: Internal reasoning tokens (billed at output rate)
 
-## Pricing Rates (As of Publication)
+## Pricing Rates
 
-The following rates are hardcoded in `token_usage.py`:
-
-| Model | Input (per million tokens) | Output (per million tokens) |
-|-------|---------------------------|----------------------------|
-| gpt-4o-2024-08-06 | $2.50 | $10.00 |
-| gpt-4.1-2025-04-14 | $2.00 | $8.00 |
-| gpt-4.1-mini-2025-04-14 | $0.50 | $1.50 |
-| gpt-4.1-nano | $0.10 | $0.40 |
-| gpt-5 | $1.25 | $10.00 |
-| gpt-5-mini | $0.25 | $2.00 |
-| gpt-5-nano | $0.05 | $0.40 |
-| o4-mini | $1.10 | $4.40 |
+Model pricing rates are configured in `model_costs.json`. See `MODEL_COSTS_README.md` for:
+- Current pricing information
+- Instructions for updating costs when OpenAI changes their pricing
+- Verification status against OpenAI's official pricing page
 
 ## Output Format
 
