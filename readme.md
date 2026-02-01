@@ -66,7 +66,9 @@ Adjust the program's behavior via the config file, setting parameters like instr
 
 ## Evaluation Scripts
 
-Multiple scripts are provided for running comprehensive evaluations across different test datasets, models, and configurations:
+Multiple scripts are provided for running comprehensive evaluations across different test datasets, models, and configurations.
+
+Note that running a grid evaluation on a range of models and configurations can be expensive, and that cost tracking is much less useful in that setting than cost prediction. When running a large grid search or using our evaluation methodology on a large dataset, we recommend running a small-scale test first and retrieving the actual costs from the OpenAI dashboard. Thereafter, predict your costs to see if they fit your budget.
 
 ### run_regrading_comparison.sh
 
