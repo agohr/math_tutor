@@ -1,3 +1,5 @@
+numpy
+tqdm
 openai
 python-dotenv
 gradio

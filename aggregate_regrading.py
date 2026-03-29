@@ -9,7 +9,6 @@ import numpy as np
 import pathlib
 import json
 import csv
-import time
 import asyncio
 
 import evaluator
@@ -62,7 +61,7 @@ grading_models=(
 
 base_test_path = pathlib.Path("tests", "test", "output")
 regrading_path = pathlib.Path("tests", "test", "repeat_grading")
-output_file_name = pathlib.Path("results", "aggregate_statistics.json")
+output_file_name = pathlib.Path("results", "aggregate_statistics.csv")
 TIMES_GRADED_PER_RUN = 3
 
 
@@ -133,6 +132,8 @@ def process_config(model, model_dir, regrading_dir, config_name, path):
 
     grader_median_taus = {}
     grader_median_corrs = {}
+    feedback_mean_len = 0
+    graded_cases = None
 
     for grading_model in grading_models:
         math_tutor.settings.model_override = grading_model
@@ -159,11 +160,16 @@ def process_config(model, model_dir, regrading_dir, config_name, path):
             grader_median_taus[grading_model] = np.median(current_grader_taus)
             grader_median_corrs[grading_model] = np.median(current_grader_corrs)
 
+    # Feedback length is the same across all graders and repeats, just use last
+    if graded_cases is not None:
+        lengths = [len(item['llm_feedback'].split()) for item in graded_cases]
+        feedback_mean_len = np.mean(lengths)
+
     # Aggregate statistics across graders
     w_p_grad, w_p_val, b_p_grad, b_p_val, avg_p, range_p = get_stats_summary(grader_median_corrs)
     w_k_grad, w_k_val, b_k_grad, b_k_val, avg_k, range_k = get_stats_summary(grader_median_taus)
 
-    return {
+    result = {
         "workflow": config_name,
         "feedback_model": model,
         "worst_pearson_grader": w_p_grad,
@@ -178,8 +184,15 @@ def process_config(model, model_dir, regrading_dir, config_name, path):
         "best_kendall_tau": b_k_val,
         "avg_kendall_tau": avg_k,
         "kendall_range": range_k,
+        "mean_length": feedback_mean_len,
         "num_graders": len(grader_median_taus.keys())
     }
+
+    for grader in grader_median_taus:
+        result[f"_pearson_{grader}"] = grader_median_corrs[grader]
+        result[f"_kendall_{grader}"] = grader_median_taus[grader]
+
+    return result
 
 
 def main():
@@ -203,16 +216,7 @@ def main():
                 csv_rows.append({})
 
     # Write results to CSV
-    fieldnames = [
-        "workflow", "feedback_model",
-        "worst_pearson_grader", "worst_pearson_correlation",
-        "best_pearson_grader", "best_pearson_correlation",
-        "avg_pearson_correlation", "pearson_range",
-        "worst_kendall_grader", "worst_kendall_tau",
-        "best_kendall_grader", "best_kendall_tau",
-        "avg_kendall_tau", "kendall_range",
-        "num_graders"
-    ]
+    fieldnames = csv_rows[0].keys()
 
     with open(output_file_name, "w", newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
